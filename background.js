@@ -10,7 +10,7 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const DECAY_ALARM_NAME = 'whitelistDecayAlarm';
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create(DECAY_ALARM_NAME, { periodInMinutes: 10080 });
+  chrome.alarms.create(DECAY_ALARM_NAME, { periodInMinutes: 10080 }); // Weekly
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -34,9 +34,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 async function getCertificateFingerprint(domain) {
   try {
     const response = await fetch(`https://crt.sh/?q=${domain}&output=json`);
+    if (!response.ok) return null;
     const data = await response.json();
     if (!data || data.length === 0) return null;
-    const latestCert = data.find(cert => new Date(cert.not_after) > new Date());
+    const latestCert = data.reduce((prev, current) => (new Date(prev.not_after) > new Date(current.not_after) ? prev : current));
     if (!latestCert) return null;
     return `${latestCert.issuer_name}:${latestCert.not_before}`;
   } catch (error) {
@@ -66,15 +67,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.webNavigation.onErrorOccurred.addListener(async (details) => {
-  const bypassableErrors = ['net::ERR_CERT_AUTHORITY_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID', 'net::ERR_CERT_DATE_INVALID', 'net::ERR_SSL_PROTOCOL_ERROR'];
-  if (!bypassableErrors.includes(details.error) || details.frameId !== 0) {
-    return;
-  }
-  
-  await chrome.scripting.executeScript({
-    target: { tabId: details.tabId },
-    files: ["content.js"],
-  }).catch(err => console.log("Failed to inject content script:", err));
+    if (details.frameId !== 0) return;
+
+    const sslErrors = ['net::ERR_CERT_AUTHORITY_INVALID', 'net::ERR_CERT_COMMON_NAME_INVALID', 'net::ERR_CERT_DATE_INVALID', 'net::ERR_SSL_PROTOCOL_ERROR'];
+    const networkErrors = ['net::ERR_CONNECTION_RESET', 'net::ERR_TUNNEL_CONNECTION_FAILED', 'net::ERR_NETWORK_CHANGED', 'net::ERR_DNS_PROBE_FINISHED_NO_INTERNET'];
+    const tabId = details.tabId;
+    const error = details.error;
+
+    if (sslErrors.includes(error)) {
+        await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ["content.js"],
+        }).catch(err => console.log("Failed to inject content script for SSL Error:", err));
+    } else if (networkErrors.includes(error)) {
+        const tabData = (await chrome.storage.session.get(tabId.toString()))[tabId] || {};
+        tabData.networkInterference = true;
+        await chrome.storage.session.set({ [tabId]: tabData });
+    }
+});
+
+chrome.webNavigation.onCommitted.addListener(async (details) => {
+    if (details.frameId !== 0) return;
+    await chrome.scripting.executeScript({
+        target: { tabId: details.tabId },
+        files: ["content.js"],
+    }).catch(err => console.log("Failed to inject content script on commit:", err));
 });
 
 
