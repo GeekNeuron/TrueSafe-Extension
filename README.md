@@ -7,8 +7,10 @@ This repository (`TrueSafe-Extension`) contains the complete source code for the
 ## Features
 
 -   **Modern UI/UX:** A clean, engaging, and easy-to-use interface.
--   **Whitelist Management:** A dedicated page to view, search, and manage your trusted sites.
--   **Temporary Access:** Whitelist sites permanently, for one hour, or for the current session.
+-   **Advanced Diagnostics:**
+    -   Automatically checks for system time errors.
+    -   Detects potential interference from Firewalls or Antivirus software.
+    -   Provides a one-click deep SSL analysis via SSL Labs.
 -   **Intelligent Security:**
     -   **Certificate Fingerprinting:** Warns if a site's SSL certificate details change unexpectedly.
     -   **VirusTotal Integration:** Scans sites for threats before you whitelist them.
@@ -19,7 +21,7 @@ This repository (`TrueSafe-Extension`) contains the complete source code for the
 ## Installation
 
 1.  Download or clone this repository.
-2.  (Optional) If you wish to re-compile the WebAssembly module, install Rust and `wasm-pack`, then run `wasm-pack build --target web` inside the `wasm-hasher` directory.
+2.  (Optional) To re-compile the WebAssembly module, install Rust and `wasm-pack`, then run `wasm-pack build --target web` inside the `wasm-hasher` directory.
 3.  Open Chrome and navigate to `chrome://extensions`.
 4.  Enable "Developer mode".
 5.  Click "Load unpacked" and select the `TrueSafe-Extension` directory.
