@@ -1,24 +1,84 @@
-body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    width: 320px;
-    padding: 10px 15px;
-    background-color: #f8f9fa;
-}
-.container { text-align: center; }
-.header { display: flex; justify-content: space-between; align-items: center; }
-.header h3 { margin: 0; color: #343a40; }
-#manage-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; border-radius: 50%; }
-#manage-btn:hover { background-color: #e9ecef; }
-#page-info { color: #6c757d; font-size: 13px; word-wrap: break-word; }
-.btn { width: 100%; border: none; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
-.btn:disabled { cursor: not-allowed; opacity: 0.6; }
-.btn.primary { background-color: #007bff; color: white; }
-.btn.primary:hover:not(:disabled) { background-color: #0056b3; }
-.btn.danger { background-color: #dc3545; color: white; }
-.btn.danger:hover:not(:disabled) { background-color: #c82333; }
-#add-section { display: flex; gap: 8px; }
-#duration-select { flex-grow: 1; border-radius: 8px; border: 1px solid #ced4da; padding: 0 5px; }
-#warning-area { margin: 10px 0; padding: 10px; border-radius: 8px; text-align: left; }
-.warning { background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; }
-.critical { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
-#feedback-area { margin-top: 10px; font-weight: 500; color: #28a745; }
+document.addEventListener('DOMContentLoaded', async () => {
+    // UI Elements
+    const pageInfo = document.getElementById('page-info');
+    const warningArea = document.getElementById('warning-area');
+    const addBtn = document.getElementById('add-btn');
+    const removeBtn = document.getElementById('remove-btn');
+    const addSection = document.getElementById('add-section');
+    const durationSelect = document.getElementById('duration-select');
+    const manageBtn = document.getElementById('manage-btn');
+    const feedbackArea = document.getElementById('feedback-area');
+
+    // Get Active Tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.url) {
+        pageInfo.textContent = 'Not a valid web page.';
+        return;
+    }
+    const url = new URL(tab.url);
+    const origin = url.origin;
+    pageInfo.textContent = `Site: ${origin}`;
+    addBtn.disabled = false;
+
+    // Check for warnings
+    const tabData = (await chrome.storage.session.get(tab.id.toString()))[tab.id];
+    if (tabData) {
+        let warnings = '';
+        if (tabData.error) {
+            warnings += `<div class="warning"><b>Reason:</b> ${tabData.error}</div>`;
+        }
+        if (tabData.passwordField) {
+            warnings += `<div class="critical" style="margin-top: 5px;"><b>CRITICAL:</b> Password field detected. Whitelisting is highly discouraged.</div>`;
+        }
+        if (warnings) {
+            warningArea.innerHTML = warnings;
+            warningArea.style.display = 'block';
+        }
+    }
+
+    // Check if site is already whitelisted
+    const { whitelistedSites = [] } = await chrome.storage.sync.get('whitelistedSites');
+    const existingSite = whitelistedSites.find(site => origin.includes(site.origin.replace('*.', '')));
+    if (existingSite) {
+        addSection.style.display = 'none';
+        removeBtn.style.display = 'block';
+    }
+
+    // --- Event Listeners ---
+    addBtn.addEventListener('click', async () => {
+        // HTTP Warning
+        if (url.protocol === 'http:') {
+            if (!confirm('This is an insecure HTTP site. Are you sure you want to whitelist it?')) {
+                return;
+            }
+        }
+        let expires = null;
+        const duration = durationSelect.value;
+        if (duration === 'hour') {
+            expires = new Date().getTime() + (60 * 60 * 1000);
+        } else if (duration === 'session') {
+            expires = 'session'; // Background will handle this
+        }
+        
+        const newSite = { origin, expires };
+        whitelistedSites.push(newSite);
+        await chrome.storage.sync.set({ whitelistedSites });
+        showFeedback('✅ Added to Whitelist!');
+        setTimeout(() => chrome.tabs.reload(tab.id), 1000);
+    });
+
+    removeBtn.addEventListener('click', async () => {
+        const updatedSites = whitelistedSites.filter(site => site.origin !== origin);
+        await chrome.storage.sync.set({ whitelistedSites: updatedSites });
+        showFeedback('❌ Removed from Whitelist!');
+        setTimeout(() => window.close(), 1000);
+    });
+
+    manageBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+    function showFeedback(message) {
+        addBtn.disabled = true;
+        removeBtn.disabled = true;
+        feedbackArea.textContent = message;
+    }
+});
