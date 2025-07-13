@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Whitelist</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Whitelist Management</h1>
+        <p>Here you can view, search, and manage your whitelisted sites.</p>
+
+        <div class="toolbar">
+            <input type="text" id="search-box" placeholder="Search sites...">
+            <div class="io-buttons">
+                <button id="import-btn" class="btn">Import</button>
+                <input type="file" id="import-file" accept=".json" hidden>
+                <button id="export-btn" class="btn">Export</button>
+            </div>
+        </div>
+
+        <ul id="whitelist-list"></ul>
+    </div>
+    <script src="options.js"></script>
+</body>
+</html>
