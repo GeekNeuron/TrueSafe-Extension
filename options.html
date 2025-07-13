@@ -2,24 +2,42 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Manage Whitelist</title>
+    <title>TrueSafe - Whitelist Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="options.css">
 </head>
 <body>
     <div class="container">
-        <h1>Whitelist Management</h1>
-        <p>Here you can view, search, and manage your whitelisted sites.</p>
+        <header>
+            <h1>Whitelist Management</h1>
+            <p>View, search, and manage your trusted sites.</p>
+        </header>
+
+        <section class="api-settings">
+            <h2>API Settings</h2>
+            <p>Enter your free VirusTotal API key to enable threat intelligence.</p>
+            <div class="api-input-wrapper">
+                <input type="password" id="vt-api-key" placeholder="Your VirusTotal API Key">
+                <button id="save-api-key-btn" class="btn primary">Save</button>
+            </div>
+        </section>
 
         <div class="toolbar">
-            <input type="text" id="search-box" placeholder="Search sites...">
+            <input type="text" id="search-box" placeholder="Search by domain...">
             <div class="io-buttons">
-                <button id="import-btn" class="btn">Import</button>
+                <button id="import-btn" class="btn secondary">Import</button>
                 <input type="file" id="import-file" accept=".json" hidden>
-                <button id="export-btn" class="btn">Export</button>
+                <button id="export-btn" class="btn secondary">Export</button>
             </div>
         </div>
 
-        <ul id="whitelist-list"></ul>
+        <div id="whitelist-grid" class="grid">
+            </div>
+        <div id="empty-state" style="display: none;">
+            <p>Your whitelist is empty.</p>
+        </div>
     </div>
     <script src="options.js"></script>
 </body>
