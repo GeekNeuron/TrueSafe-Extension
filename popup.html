@@ -2,18 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Safe Passage Whitelist</title>
+    <title>Advanced Safe Passage</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
     <div class="container">
-        <h3>Safe Passage</h3>
-        <p id="page-info">Active page URL will appear here.</p>
-        <button id="whitelist-btn" class="btn" disabled>Add to Whitelist</button>
-        <div id="user-issue-notice" class="notice" style="display: none;">
-            <h4>⚠️ Possible Client-Side Issue</h4>
-            <p>Your computer's clock appears to be out of sync. This can cause legitimate websites to show security errors. Please check your system's date and time settings for accuracy.</p>
+        <div class="header">
+            <h3>Safe Passage</h3>
+            <button id="manage-btn" title="Manage Whitelist">⚙️</button>
         </div>
+
+        <div id="status-area">
+            <p id="page-info">Loading...</p>
+        </div>
+
+        <div id="warning-area" style="display: none;"></div>
+
+        <div id="action-area">
+            <div id="add-section">
+                <select id="duration-select">
+                    <option value="permanent">Whitelist Permanently</option>
+                    <option value="hour">Whitelist for 1 Hour</option>
+                    <option value="session">Whitelist for this Session</option>
+                </select>
+                <button id="add-btn" class="btn primary" disabled>Add</button>
+            </div>
+            <button id="remove-btn" class="btn danger" style="display: none;">Remove from Whitelist</button>
+        </div>
+
+        <div id="feedback-area"></div>
     </div>
     <script src="popup.js"></script>
 </body>
