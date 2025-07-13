@@ -1,17 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "Advanced Safe Passage",
-  "version": "2.0.0",
-  "description": "An advanced tool to manage browser security warnings with temporary whitelisting and more.",
+  "name": "TrueSafe",
+  "version": "5.0.0",
+  "description": "An intelligent security platform to manage browser warnings with professional-grade features.",
   "permissions": [
     "storage",
     "tabs",
     "webNavigation",
     "scripting",
-    "downloads"
+    "downloads",
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "httpss://www.virustotal.com/",
+    "httpss://crt.sh/"
   ],
   "background": {
     "service_worker": "background.js"
@@ -25,5 +29,15 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "wasm_hasher_bg.wasm"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }
