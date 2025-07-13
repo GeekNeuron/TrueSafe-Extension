@@ -1,59 +1,24 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const whitelistBtn = document.getElementById('whitelist-btn');
-    const pageInfo = document.getElementById('page-info');
-    const userIssueNotice = document.getElementById('user-issue-notice');
-
-    let currentOrigin = '';
-
-    // Function to check if the user's system clock is correct
-    async function checkSystemClock() {
-        try {
-            const response = await fetch('https://worldtimeapi.org/api/ip');
-            const data = await response.json();
-            const serverTime = new Date(data.utc_datetime).getTime();
-            const localTime = Date.now();
-            // If time difference is more than 3 minutes (180,000 ms), show warning
-            if (Math.abs(serverTime - localTime) > 180000) {
-                userIssueNotice.style.display = 'block';
-            }
-        } catch (e) {
-            console.info("Could not check system time.");
-        }
-    }
-
-    // Get current tab URL and update the UI
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].url) {
-            try {
-                const url = new URL(tabs[0].url);
-                if (url.protocol === 'http:' || url.protocol === 'https:') {
-                    currentOrigin = url.origin;
-                    pageInfo.textContent = `Site: ${currentOrigin}`;
-                    whitelistBtn.disabled = false;
-                } else {
-                    pageInfo.textContent = 'This page type cannot be whitelisted.';
-                }
-            } catch (error) {
-                pageInfo.textContent = 'Not a valid web page URL.';
-            }
-        }
-    });
-
-    // Handle whitelist button click
-    whitelistBtn.addEventListener('click', () => {
-        chrome.storage.sync.get({ whitelistedSites: [] }, (data) => {
-            const sites = new Set(data.whitelistedSites);
-            if (!sites.has(currentOrigin)) {
-                sites.add(currentOrigin);
-                chrome.storage.sync.set({ whitelistedSites: Array.from(sites) }, () => {
-                    whitelistBtn.textContent = 'Added to Whitelist!';
-                    whitelistBtn.disabled = true;
-                    // Reload the page to attempt bypass
-                    chrome.tabs.reload({ bypassCache: true });
-                });
-            }
-        });
-    });
-
-    checkSystemClock();
-});
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    width: 320px;
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+}
+.container { text-align: center; }
+.header { display: flex; justify-content: space-between; align-items: center; }
+.header h3 { margin: 0; color: #343a40; }
+#manage-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; border-radius: 50%; }
+#manage-btn:hover { background-color: #e9ecef; }
+#page-info { color: #6c757d; font-size: 13px; word-wrap: break-word; }
+.btn { width: 100%; border: none; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+.btn:disabled { cursor: not-allowed; opacity: 0.6; }
+.btn.primary { background-color: #007bff; color: white; }
+.btn.primary:hover:not(:disabled) { background-color: #0056b3; }
+.btn.danger { background-color: #dc3545; color: white; }
+.btn.danger:hover:not(:disabled) { background-color: #c82333; }
+#add-section { display: flex; gap: 8px; }
+#duration-select { flex-grow: 1; border-radius: 8px; border: 1px solid #ced4da; padding: 0 5px; }
+#warning-area { margin: 10px 0; padding: 10px; border-radius: 8px; text-align: left; }
+.warning { background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; }
+.critical { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+#feedback-area { margin-top: 10px; font-weight: 500; color: #28a745; }
