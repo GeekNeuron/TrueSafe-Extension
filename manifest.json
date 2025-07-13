@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "TrueSafe",
-  "version": "5.0.0",
-  "description": "An intelligent security platform to manage browser warnings with professional-grade features.",
+  "version": "6.0.0",
+  "description": "An intelligent security platform with advanced diagnostics to manage browser warnings.",
   "permissions": [
     "storage",
     "tabs",
@@ -15,7 +15,8 @@
   "host_permissions": [
     "<all_urls>",
     "httpss://www.virustotal.com/",
-    "httpss://crt.sh/"
+    "httpss://crt.sh/",
+    "httpss://worldtimeapi.org/"
   ],
   "background": {
     "service_worker": "background.js"
