@@ -1,39 +1,60 @@
 document.addEventListener('DOMContentLoaded', () => {
     const searchBox = document.getElementById('search-box');
-    const whitelistList = document.getElementById('whitelist-list');
+    const whitelistGrid = document.getElementById('whitelist-grid');
+    const emptyState = document.getElementById('empty-state');
     const importBtn = document.getElementById('import-btn');
     const importFile = document.getElementById('import-file');
     const exportBtn = document.getElementById('export-btn');
+    const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+    const vtApiKeyInput = document.getElementById('vt-api-key');
 
     let allSites = [];
 
     const renderList = (sites) => {
-        whitelistList.innerHTML = '';
+        whitelistGrid.innerHTML = '';
         if (sites.length === 0) {
-            whitelistList.innerHTML = '<li>Your whitelist is empty.</li>';
+            emptyState.style.display = 'block';
             return;
         }
-        sites.forEach((site, index) => {
-            const li = document.createElement('li');
-            li.className = 'list-item';
-            
-            let status = 'Permanent';
-            if (site.expires && site.expires !== 'session') {
-                const expiryDate = new Date(site.expires);
-                if (expiryDate < new Date()) status = 'Expired';
-                else status = `Expires: ${expiryDate.toLocaleString()}`;
-            } else if (site.expires === 'session') {
-                status = 'For this session';
-            }
+        emptyState.style.display = 'none';
 
-            li.innerHTML = `
-                <div>
-                    <div class="origin">${site.origin}</div>
-                    <div class="status">${status}</div>
+        sites.forEach((site) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            let statusText = 'Permanent';
+            let statusClass = 'permanent';
+            if (site.expires) {
+                if (site.expires === 'session') {
+                    statusText = 'Session';
+                    statusClass = 'session';
+                } else {
+                    const expiryDate = new Date(site.expires);
+                    if (expiryDate < new Date()) {
+                        statusText = 'Expired';
+                        statusClass = 'expired';
+                    } else {
+                        statusText = `Expires ${expiryDate.toLocaleDateString()}`;
+                        statusClass = 'expires';
+                    }
+                }
+            }
+            
+            const lastAccessedText = site.lastAccessed ? new Date(site.lastAccessed).toLocaleDateString() : 'Never';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="origin">${site.origin}</span>
+                    <button class="delete-btn" data-origin="${site.origin}" title="Remove">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+                    </button>
                 </div>
-                <button class="delete-btn" data-index="${index}">Delete</button>
+                <div class="card-body">
+                    <div class="status ${statusClass}">${statusText}</div>
+                    <div class="metadata">Last Accessed: ${lastAccessedText}</div>
+                </div>
             `;
-            whitelistList.appendChild(li);
+            whitelistGrid.appendChild(card);
         });
     };
 
@@ -43,17 +64,18 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList(allSites);
     };
 
-    // Event Listeners
+    // --- Event Listeners ---
     searchBox.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
         const filteredSites = allSites.filter(site => site.origin.toLowerCase().includes(query));
         renderList(filteredSites);
     });
 
-    whitelistList.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('delete-btn')) {
-            const indexToRemove = parseInt(e.target.dataset.index, 10);
-            allSites.splice(indexToRemove, 1);
+    whitelistGrid.addEventListener('click', async (e) => {
+        const deleteButton = e.target.closest('.delete-btn');
+        if (deleteButton) {
+            const originToRemove = deleteButton.dataset.origin;
+            allSites = allSites.filter(site => site.origin !== originToRemove);
             await chrome.storage.sync.set({ whitelistedSites: allSites });
             loadSites();
         }
@@ -65,7 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = URL.createObjectURL(blob);
         chrome.downloads.download({
             url: url,
-            filename: 'safepassage_whitelist.json'
+            filename: 'truesafe_whitelist.json',
+            saveAs: true
         });
     });
 
@@ -77,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = async (event) => {
             try {
                 const importedSites = JSON.parse(event.target.result);
-                // Basic validation
                 if (Array.isArray(importedSites)) {
                     await chrome.storage.sync.set({ whitelistedSites: importedSites });
                     loadSites();
@@ -90,6 +112,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         reader.readAsText(file);
+    });
+    
+    // API Key Logic
+    chrome.storage.sync.get('virusTotalApiKey', (data) => {
+        if (data.virusTotalApiKey) {
+            vtApiKeyInput.value = data.virusTotalApiKey;
+        }
+    });
+
+    saveApiKeyBtn.addEventListener('click', () => {
+        const apiKey = vtApiKeyInput.value.trim();
+        if (apiKey) {
+            chrome.storage.sync.set({ virusTotalApiKey: apiKey }, () => {
+                saveApiKeyBtn.textContent = 'Saved!';
+                setTimeout(() => { saveApiKeyBtn.textContent = 'Save'; }, 2000);
+            });
+        }
     });
 
     loadSites();
