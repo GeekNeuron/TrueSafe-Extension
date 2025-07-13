@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // --- UI Elements ---
     const pageInfo = document.getElementById('page-info');
+    const diagnosticsArea = document.getElementById('diagnostics-area');
     const warningArea = document.getElementById('warning-area');
     const recommendationArea = document.getElementById('recommendation-area');
     const addBtn = document.getElementById('add-btn');
@@ -10,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const manageBtn = document.getElementById('manage-btn');
     const feedbackArea = document.getElementById('feedback-area');
 
-    // --- Initial Setup & Risk Scoring ---
+    // --- Initial Setup ---
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.url || !tab.url.startsWith('http')) {
         pageInfo.textContent = 'Not a valid web page.';
@@ -22,32 +23,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageInfo.textContent = `Site: ${origin}`;
     addBtn.disabled = false;
 
+    // --- System Diagnostics ---
+    async function runSystemDiagnostics() {
+        // 1. Check for network interference flag
+        const tabData = (await chrome.storage.session.get(tab.id.toString()))[tab.id] || {};
+        if (tabData.networkInterference) {
+            const networkWarning = document.createElement('div');
+            networkWarning.className = 'diag-warning diag-network';
+            networkWarning.innerHTML = '<b>Network Issue Detected:</b> Your connection was interrupted. This may be caused by your Antivirus, Firewall, or a local proxy.';
+            diagnosticsArea.appendChild(networkWarning);
+        }
+
+        // 2. Check system time
+        try {
+            const response = await fetch('https://worldtimeapi.org/api/ip');
+            if (!response.ok) return;
+            const data = await response.json();
+            const serverTime = new Date(data.utc_datetime).getTime();
+            const localTime = Date.now();
+            if (Math.abs(serverTime - localTime) > 180000) { // 3 minutes difference
+                const timeWarning = document.createElement('div');
+                timeWarning.className = 'diag-warning diag-time';
+                timeWarning.innerHTML = '<b>System Time is Incorrect:</b> Your computer\'s clock is out of sync. Please enable "Set time automatically" in your OS settings.';
+                diagnosticsArea.appendChild(timeWarning);
+            }
+        } catch (e) { console.info("Could not check system time."); }
+    }
+    await runSystemDiagnostics();
+
+    // --- Risk Scoring & Warning Display ---
     const { whitelistedSites = [] } = await chrome.storage.sync.get('whitelistedSites');
     const existingSite = whitelistedSites.find(site => site.origin === origin);
-    
-    // Check for warnings
     const tabData = (await chrome.storage.session.get(tab.id.toString()))[tab.id] || {};
     let riskScore = 0;
     let recommendationReason = '';
     
-    warningArea.innerHTML = `
-        <div id="warning-fingerprint" class="critical"></div>
-        <div id="warning-content" class="warning"></div>
-        <div id="warning-password" class="critical"></div>
-        <div id="warning-vt" class="critical"></div>
-    `;
-
+    // Create warning divs
     if (tabData.fingerprintChanged) {
-        document.getElementById('warning-fingerprint').textContent = 'MAJOR WARNING: Certificate fingerprint has changed! This could be a hijack.';
-        document.getElementById('warning-fingerprint').style.display = 'block';
+        let div = document.createElement('div');
+        div.className = 'critical';
+        div.textContent = 'MAJOR WARNING: Certificate fingerprint has changed! This could be a hijack.';
+        warningArea.appendChild(div);
     }
     if (tabData.contentChanged) {
-        document.getElementById('warning-content').textContent = 'Content Changed: The structure of this page has significantly changed. Please re-verify.';
-        document.getElementById('warning-content').style.display = 'block';
+        let div = document.createElement('div');
+        div.className = 'warning';
+        div.textContent = 'Content Changed: The structure of this page has significantly changed. Please re-verify.';
+        warningArea.appendChild(div);
     }
     if (tabData.passwordField) {
-        document.getElementById('warning-password').textContent = 'CRITICAL: Password field detected. Whitelisting is highly discouraged.';
-        document.getElementById('warning-password').style.display = 'block';
+        let div = document.createElement('div');
+        div.className = 'critical';
+        div.textContent = 'CRITICAL: Password field detected. Whitelisting is highly discouraged.';
+        warningArea.appendChild(div);
         riskScore += 3;
         recommendationReason = 'a password field was detected';
     }
@@ -57,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (riskScore > 0) {
-        durationSelect.value = 'session'; // Pre-select the safest option
+        durationSelect.value = 'session';
         recommendationArea.textContent = `💡 Recommendation: Whitelist for "Session" only because this ${recommendationReason}.`;
         recommendationArea.style.display = 'block';
     }
@@ -67,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         removeBtn.style.display = 'block';
     }
 
-    // --- VirusTotal Check Function ---
+    // --- VirusTotal Check ---
     async function checkVirusTotal(domain, apiKey) {
         addBtn.disabled = true;
         addBtn.textContent = 'Analyzing...';
@@ -81,8 +109,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const stats = data.data.attributes.last_analysis_stats;
             if (stats.malicious > 0 || stats.suspicious > 0) {
                 const threatCount = stats.malicious + stats.suspicious;
-                document.getElementById('warning-vt').textContent = `THREAT DETECTED: VirusTotal reports this site as malicious (${threatCount} vendors). Whitelisting is blocked.`;
-                document.getElementById('warning-vt').style.display = 'block';
+                let div = document.createElement('div');
+                div.className = 'critical';
+                div.innerHTML = `<b>THREAT DETECTED:</b> VirusTotal reports this site as malicious (${threatCount} vendors). Whitelisting is blocked.`;
+                warningArea.appendChild(div);
                 addSection.style.display = 'none';
                 return false;
             }
@@ -109,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (duration === 'hour') expires = Date.now() + 3600000;
         else if (duration === 'session') expires = 'session';
         
-        const tabDataForHash = (await chrome.storage.session.get(tab.id.toString()))[tab.id] || {};
+        const latestTabData = (await chrome.storage.session.get(tab.id.toString()))[tab.id] || {};
         const fingerprint = await chrome.runtime.sendMessage({ type: "GET_FINGERPRINT", domain: url.hostname });
 
         const newSite = {
@@ -118,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             addedDate: Date.now(),
             lastAccessed: Date.now(),
             certificateFingerprint: fingerprint,
-            contentHash: tabDataForHash.contentHash || null
+            contentHash: latestTabData.contentHash || null
         };
         
         const data = await chrome.storage.sync.get('whitelistedSites');
